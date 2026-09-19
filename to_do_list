@@ -1,0 +1,115 @@
+from comp_engine import *
+
+def enter_list():
+    global game_state
+    game_state = 1
+
+def exit_list():
+    pygame.quit()
+    quit(0)
+
+def add_to():
+    global game_state
+    game_state = 2
+
+def remove_from():
+    global game_state
+    game_state = 3
+
+def go_back():
+    global game_state
+    game_state = 0
+
+list = []
+word = ""
+window = Window(720, 720, 0, "To do list")
+background = Sprite(720, 720, 245, 242, 235, 0, 0)
+name = Label(320, 130, 255, 255, 255, 200, 60, "TO DO LIST", pygame.font.SysFont("Georgia" , 40))
+
+go_list = Button(240, 60, 255, 255, 255, 240, 260, "GO TO LIST", pygame.font.SysFont("Calibri", 24),34 , 45 , 65 , command=enter_list)
+add= Button(240, 60, 255, 255, 255, 240, 340, "ADD",        pygame.font.SysFont("Calibri", 24), 34 , 45 , 65 ,command=add_to)
+remove = Button(240, 60, 255, 255, 255, 240, 420, "REMOVE",     pygame.font.SysFont("Calibri", 24), 34 , 45 , 65 ,command=remove_from)
+leave_list = Button(240, 60, 255, 255, 255, 240, 500, "EXIT LIST",  pygame.font.SysFont("Calibri", 24), 34 , 45 , 65 ,command=exit_list)
+back = Button(100, 50, 250, 250, 250, 310, 600, "BACK " , pygame.font.SysFont("Calibri", 24) , 34 , 45 , 65 ,command = go_back)
+game_state = 0
+
+paper = Sprite(400, 720, 255, 255, 255, 160, 0)
+block = Sprite(300, 90, 255, 255, 255, 0, 0)
+
+
+while True:
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            quit(0)
+        elif event.type == pygame.MOUSEBUTTONDOWN:
+            if event.button == pygame.BUTTON_LEFT:
+                mouse_x, mouse_y = event.pos
+                if game_state == 0:
+                    if go_list.is_mouse_in(mouse_x, mouse_y):
+                        go_list.click()
+                    elif leave_list.is_mouse_in(mouse_x, mouse_y):
+                        leave_list.click()
+                    elif add.is_mouse_in(mouse_x, mouse_y):
+                        add.click()
+                    elif remove.is_mouse_in(mouse_x, mouse_y):
+                        remove.click()
+                elif game_state in (1 , 2 ,3):
+                    if back.is_mouse_in(mouse_x, mouse_y):
+                        back.click()
+        elif game_state == 2:
+            if event.type == pygame.TEXTINPUT:
+                word += event.text
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_BACKSPACE:
+                    word = word[: -1]
+                elif event.key == pygame.K_RETURN:
+                    list.append(word)
+                    word = ""
+        elif game_state == 3:
+            if event.type == pygame.TEXTINPUT:
+                word += event.text
+            elif event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_BACKSPACE:
+                    word = word[: -1]
+                elif event.key == pygame.K_RETURN:
+                    if word in list:
+                        list.remove(word)
+                    word = ""
+
+
+
+
+    window.clear()
+    window.draw(background)
+    if game_state == 0:
+        window.draw(name)
+        window.draw(go_list)
+        window.draw(leave_list)
+        window.draw(add)
+        window.draw(remove)
+    elif game_state == 1:
+        window.draw(paper)
+        window.draw(back)
+        list_font = pygame.font.SysFont("Calibri" , 28)
+        position = 0
+        for i , item in enumerate (list):
+            item_text = list_font.render(item , True , (0 , 0 , 0))
+            text_width = item_text.get_width()
+            x = 210 + (300 - text_width) // 2
+            window.window.blit(item_text , (x , 30 + position * 35))
+            position += 1
+    elif game_state == 2:
+        window.draw(block)
+        window.draw(back)
+        typed = pygame.font.SysFont("Calibri" , 64).render(word , True , (0 , 0 , 0 ))
+        window.window.blit(typed , (30 , 30))
+    elif game_state == 3:
+        window.draw(block)
+        window.draw(back)
+        typed = pygame.font.SysFont("Calibri" , 64).render(word , True , (0 , 0 , 0 ))
+        window.window.blit(typed , (30 , 30))
+
+
+
+    window.swap_buffers()
