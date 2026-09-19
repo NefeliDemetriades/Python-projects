@@ -1,0 +1,133 @@
+import random
+
+from engine import *
+
+DIRECTION_UP = Vector(0, -1)
+DIRECTION_RIGHT = Vector(1, 0)
+DIRECTION_DOWN = Vector(0, 1)
+DIRECTION_LEFT = Vector(-1, 0)
+
+
+window = Window(800, 800, 0, "PC03 T03 Unit 08")
+
+
+tank_up_animation = Animation(60)
+tank_up_animation.add_frame("assets/images/tank_up.png")
+tank_down_animation = Animation(60)
+tank_down_animation.add_frame("assets/images/tank_down.png")
+tank_right_animation = Animation(60)
+tank_right_animation.add_frame("assets/images/tank_right.png")
+tank_left_animation = Animation(60)
+tank_left_animation.add_frame("assets/images/tank_left.png")
+tank_direction = DIRECTION_UP
+tank_speed = 100
+ufo_spawn_timer = 3.0
+current_ufo_spawn_timer = ufo_spawn_timer
+ufo_speed = 30
+laser_speed = 800
+
+start_point = Sprite(1, 1, 0, 0, 0, 500, 600)
+point_1 = Sprite(1, 1, 0, 0, 0, 100, 400)
+point_2 = Sprite(1, 1, 0, 0, 0, 600, 100)
+world = World(1280, 1280, 0, 0, 0, 0, 0)
+background = Sprite(1280, 1280, 0, 0, 0, 0, 0, "assets/images/background.png")
+tank = Sprite(128, 128, 0, 0, 0, 500, 500, animation=tank_up_animation)
+ufo = []
+lasers = []
+world.focus_on(start_point.get_midpoint() , 1280 , 1280)
+
+while True:
+    # Input
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            pygame.quit()
+            quit(0)
+        elif event.type == pygame.KEYDOWN:
+            if event.key == pygame.K_DOWN:
+                tank.velocity.y += tank_speed
+            elif event.key == pygame.K_UP:
+                tank.velocity.y -= tank_speed
+            elif event.key == pygame.K_RIGHT:
+                tank.velocity.x += tank_speed
+            elif event.key == pygame.K_LEFT:
+                tank.velocity.x -= tank_speed
+            elif event.key == pygame.K_SPACE:
+                if tank_direction == DIRECTION_UP:
+                    laser = Sprite(5, 30, 255, 0, 0, tank.get_midpoint().x, tank.get_midpoint().y - ((tank.height / 2) + 5))
+                elif tank_direction == DIRECTION_DOWN:
+                    laser = Sprite(5, 30, 255, 0, 0, tank.get_midpoint().x, tank.get_midpoint().y + ((tank.height / 2) + 5))
+                elif tank_direction == DIRECTION_RIGHT:
+                    laser = Sprite(30, 5, 255, 0, 0, tank.get_midpoint().x + ((tank.width / 2) + 5), tank.get_midpoint().y)
+                else:
+                    laser = Sprite(30, 5, 255, 0, 0, tank.get_midpoint().x - ((tank.width / 2) + 5), tank.get_midpoint().y)
+                laser.add_impulse(Vector(tank_direction.x * laser_speed, tank_direction.y * laser_speed))
+                lasers.append(laser)
+        elif event.type == pygame.KEYUP:
+            if event.key == pygame.K_DOWN:
+                tank.velocity.y -= tank_speed
+            elif event.key == pygame.K_UP:
+                tank.velocity.y += tank_speed
+            elif event.key == pygame.K_RIGHT:
+                tank.velocity.x -= tank_speed
+            elif event.key == pygame.K_LEFT:
+                tank.velocity.x += tank_speed
+
+    # Update
+    dt = window.get_dt()
+    current_ufo_spawn_timer -= dt
+    if current_ufo_spawn_timer <= 0:
+        current_ufo_spawn_timer = ufo_spawn_timer
+        ufo.append(Sprite(64, 64, 0, 0, 0, random.choice([-100, 1300]), random.choice([-100, 1300]),image_path="assets/images/ufo.png"))
+
+    tank.update(dt)
+    tank.update_animation(dt)
+    if tank.velocity.x > 0:
+        tank_direction = DIRECTION_RIGHT
+        tank.animation = tank_right_animation
+    elif tank.velocity.x < 0:
+        tank_direction = DIRECTION_LEFT
+        tank.animation = tank_left_animation
+    elif tank.velocity.y > 0:
+        tank_direction = DIRECTION_DOWN
+        tank.animation = tank_down_animation
+    elif tank.velocity.y < 0:
+        tank_direction = DIRECTION_UP
+        tank.animation = tank_up_animation
+    for enemy in ufo:
+        direction = Vector(tank.position.x - enemy.position.x, tank.position.y - enemy.position.y)
+        magnitude = math.hypot(direction.x, direction.y)
+        direction.x /= magnitude
+        direction.y /= magnitude
+        direction.x *= ufo_speed
+        direction.y *= ufo_speed
+        enemy.velocity = direction
+        enemy.update(dt)
+        if Sprite.does_collide(enemy, tank):
+            pygame.quit()
+            quit(0)
+    for laser in lasers:
+        laser.update(dt)
+        laser_should_remove = False
+        for enemy in ufo:
+            if Sprite.does_collide(laser, enemy):
+                ufo.remove(enemy)
+                laser_should_remove = True
+                break
+        if laser.position.x < -100 or laser.position.x > 1300 or laser.position.y < -100 or laser.position.y > 1300:
+            laser_should_remove = True
+        if laser_should_remove:
+            lasers.remove(laser)
+            break
+    world.focus_on(tank.get_midpoint() , 1280 , 1280)
+
+    # Render
+    window.clear()
+    world.clear()
+    world.draw(background)
+    world.draw(tank)
+    for enemy in ufo:
+        world.draw(enemy)
+    for laser in lasers:
+        world.draw(laser)
+    window.draw(world)
+    window.swap_buffers()
