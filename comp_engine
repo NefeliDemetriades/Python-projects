@@ -1,0 +1,188 @@
+import time
+import math
+
+import pygame
+
+pygame.init()
+
+class Animation:
+    def __init__(self , fps: int):
+        self.frames = []
+        self.fps = fps
+        self.max_frame_duration = 1 / fps
+        self.current_frame_duration = 0
+        self.current_frame_index = 0
+
+    def update(self , dt:float) -> None:
+        self.current_frame_duration += dt
+        if self.current_frame_duration >= self.max_frame_duration:
+            self.current_frame_index = (self.current_frame_index  + 1) % len(self.frames)
+            self.current_frame_duration -= self.max_frame_duration
+
+    def get_current_frame(self) -> pygame.Surface:
+        return self.frames[self.current_frame_index]
+
+    def add_frame(self , frame_image_path: str) -> None:
+        self.frames.append(pygame.image.load(frame_image_path).convert_alpha())
+
+class Audio:
+    def __init__(self , file_path: str):
+        self.sound = pygame.mixer.Sound(file_path)
+
+    def play(self , loops: bool = False):
+        if loops:
+            self.sound.play(loops = -1)
+        else:
+            self.sound.play()
+
+    def stop(self):
+        self.sound.stop()
+
+class Vector:
+    @staticmethod
+    def get_info():
+        print("this class organise vectors and multiplies them and adds them")
+    def __init__(self , x:float , y:float):
+        self.x = x
+        self.y = y
+
+    def __add__(self , other: "Vector") -> "Vector":
+        return Vector(self.x + other.x , self.y + other.y)
+
+    def __str__(self) -> str:
+        return f"({self.x} , {self.y})"
+
+    def __mul__(self , scalar : float) -> "Vector":
+        return Vector(self.x*scalar , self.y*scalar)
+
+    @staticmethod
+    def get_distance(point_1: "Vector" , point_2: "Vector") -> float:
+        x_length = point_2.x - point_1.x
+        y_length = point_2.y - point_1.y
+        return math.hypot(x_length , y_length)
+
+class Window:
+    @staticmethod
+    def get_info():
+        print("this class creates the window and swaps buffers, clears and draws on the window")
+
+    def __init__(self ,width: int , height: int , fullscreen: int , caption: str):
+        self.window = pygame.display.set_mode((width,height) , fullscreen)
+        pygame.display.set_caption(caption)
+        self.previous_time = time.time()
+        pygame.key.start_text_input()
+
+    def swap_buffers(self):
+        pygame.display.flip()
+
+    def draw(self, sprite : "Sprite"):
+        self.window.blit(sprite.surface , (sprite.position.x , sprite.position.y))
+
+    def clear(self):
+        self.window.fill((0 , 0 , 0))
+
+    def get_dt(self):
+        current_time = time.time()
+        dt = current_time - self.previous_time
+        self.previous_time = current_time
+        return dt
+
+
+class Sprite:
+    @staticmethod
+    def get_info():
+        print("this class creates a sprite and updates it")
+
+    @staticmethod
+    def does_collide(sprite1: "Sprite" , sprite2: "Sprite") -> bool:
+        return(
+            sprite1.get_left() <= sprite2.get_right()
+            and sprite1.get_right() >= sprite2.get_left()
+            and sprite1.get_top() <= sprite2.get_bottom()
+            and sprite1.get_bottom() >= sprite2.get_top()
+        )
+
+    @staticmethod
+    def does_collide_circular(sprite1: "Sprite" , sprite2: "Vector") -> bool:
+        distance = Vector.get_distance(sprite1.get_midpoint() , sprite2.get_midpoint())
+        return distance <= (sprite1.width / 2) + (sprite2.width / 2)
+    def __init__(self , width : int , height : int , red : int , green : int , blue:int , x:float , y : float, image_path : str = None , animation:Animation =None):
+        if image_path is None:
+            self.surface = pygame.Surface((width, height))
+            self.surface.fill((red, green, blue))
+        else:
+            self.surface = pygame.image.load(image_path).convert_alpha()
+            self.surface = pygame.transform.scale(self.surface , (width , height))
+        self.position = Vector(x,y)
+        self.velocity = Vector(0 , 0)
+        self.width = width
+        self.height = height
+        self.animation = animation
+        self.acceleration = Vector(0 , 0)
+
+    def update(self , dt):
+        self.velocity += Vector(self.acceleration.x * dt , self.acceleration.y * dt)
+        self.acceleration = Vector(0 , 0)
+        self.position += self.velocity*dt
+
+    def get_left(self) -> float:
+        return self.position.x
+
+    def get_right(self) -> float:
+        return self.position.x + self.width
+
+    def get_top(self) -> float:
+        return self.position.y
+
+    def get_bottom(self) -> float:
+        return self.position.y + self.height
+
+    def get_midpoint(self) -> Vector:
+        mid_x = self.position.x + (self.width / 2)
+        mid_y = self.position.y + (self.height / 2)
+        return Vector(mid_x , mid_y)
+
+    def update_animation(self , dt:float):
+        if self.animation is not None:
+            before_index = self.animation.current_frame_index
+            self.animation.update(dt)
+            after_index = self.animation.current_frame_index
+            self.surface = pygame.transform.scale(self.animation.get_current_frame() , (self.width , self.height))
+            return before_index == len(self.animation.frames) - 1 and after_index == 0
+
+    def add_impulse(self , impulse: Vector):
+        self.velocity += impulse
+
+    def add_acceleration(self , acceleration : Vector):
+        self.acceleration += acceleration
+
+
+class Label(Sprite):
+    def __init__(self, width: int , height: int, text_red: int, text_green: int, text_blue: int, x: float , y:float , text: str , font : pygame.font.SysFont, frame_red: int = None , frame_green: int = None , frame_blue : int = None , frame_image_path: str = None):
+        if frame_image_path is not None:
+            Sprite.__init__(self , width , height , 0 , 0 , 0 , x , y , image_path = frame_image_path)
+        elif frame_red is not None and frame_green is not None and frame_blue is not None:
+            Sprite.__init__(self, width , height , frame_red , frame_green, frame_blue , x , y)
+        else:
+            Sprite.__init__(self, width , height , 0 , 0 , 0 , x , y)
+        self.text = text
+        self.font = font
+        text_surface = self.font.render(self.text , False , (text_red , text_green , text_blue))
+        text_surface = pygame.transform.scale(text_surface , (width , height))
+        self.surface.blit(text_surface , (0,0))
+
+class Button(Label):
+    def __init__(self, width: int , height: int, text_red: int, text_green: int, text_blue: int, x: float , y:float , text: str , font : pygame.font.SysFont, frame_red: int = None , frame_green: int = None , frame_blue : int = None , frame_image_path: str = None , command = None):
+        Label.__init__(self, width , height , text_red , text_green , text_blue, x , y , text , font , frame_red , frame_green , frame_blue  , frame_image_path)
+        self.command = command
+
+    def is_mouse_in(
+            self, mouse_x: float, mouse_y : float):
+        return(self.get_left() <= mouse_x <= self.get_right()
+               and self.get_top() <= mouse_y <= self.get_bottom()
+               )
+
+    def click(self):
+        if self.command is not None:
+            self.command()
+
